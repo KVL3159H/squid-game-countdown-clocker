@@ -144,17 +144,25 @@ export default function SquidCTF() {
     playing.current = true;
   }, []);
 
+  const transitionTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   /* ── Image cross-fade ── */
   const rotateImage = useCallback(() => {
-    const next = (imgIdx + 1) % IMAGES.length;
-    setNextIdx(next);
-    setTransitioning(true);
-    setTimeout(() => {
-      setImgIdx(next);
-      setNextIdx((next + 1) % IMAGES.length);
-      setTransitioning(false);
-    }, 1600);
-  }, [imgIdx]);
+    setImgIdx(prevIdx => {
+      const next = (prevIdx + 1) % IMAGES.length;
+      setNextIdx(next);
+      setTransitioning(true);
+      
+      if (transitionTimeout.current) clearTimeout(transitionTimeout.current);
+      transitionTimeout.current = setTimeout(() => {
+        setImgIdx(next);
+        setNextIdx((next + 1) % IMAGES.length);
+        setTransitioning(false);
+      }, 1600);
+      
+      return prevIdx; 
+    });
+  }, []);
 
   /* ── Countdown + image rotation ── */
   useEffect(() => {
@@ -178,9 +186,9 @@ export default function SquidCTF() {
     return () => {
       clearInterval(tick);
       clearInterval(imgTimer);
+      if (transitionTimeout.current) clearTimeout(transitionTimeout.current);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [screen]);
+  }, [screen, rotateImage]);
 
   /* ── Danger mode ── */
   useEffect(() => {
@@ -224,7 +232,10 @@ export default function SquidCTF() {
         glitchTimeout.current = setTimeout(() => setGlitch(false), 320);
       }
     }, danger ? 14000 : 42000);
-    return () => clearInterval(t);
+    return () => {
+      clearInterval(t);
+      if (glitchTimeout.current) clearTimeout(glitchTimeout.current);
+    };
   }, [screen, danger]);
 
   const progress = ((TOTAL - timeLeft) / TOTAL) * 100;
