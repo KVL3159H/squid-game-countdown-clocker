@@ -1,9 +1,11 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
-// ─── Image list (30 images in public/) ────────────────────────────────────
-const IMAGES: string[] = [
+/* ═══════════════════════════════════════════════════════════
+   CONSTANTS
+═══════════════════════════════════════════════════════════ */
+const IMAGES = [
   '1.jpg','2.jpg','3.jpg','4.jpg','5.jpg',
   '6.jpg','7.jpg','8.jpg','9.jpg','10.jpg',
   '11.jpg','12.jpg','13.jpg','14.jpg','15.jpg',
@@ -12,340 +14,357 @@ const IMAGES: string[] = [
   '26.jpeg','27.jpeg','28.jpeg','29.webp','30.webp',
 ];
 
-const TOTAL_TIME = 7200; // 2 hours in seconds
-const IMAGE_INTERVAL = 120; // change image every 2 minutes
-const DANGER_THRESHOLD = 600; // last 10 minutes
-const WARNING_MESSAGES = ['TIME IS RUNNING OUT', 'HURRY UP', 'FINAL MINUTES', 'MOVE FASTER', 'SECONDS LEFT'];
-const PLAYER_ID = 'PLAYER 067';
+const TOTAL      = 7200;  // 2 hours
+const IMG_EVERY  = 120;   // seconds per image
+const DANGER_AT  = 600;   // last 10 min
 
-// ─── Helper: format time ─────────────────────────────────────────────────
-function formatTime(seconds: number): string {
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  const s = seconds % 60;
-  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+const WARNINGS = [
+  'TIME IS RUNNING OUT',
+  'HURRY UP',
+  'FINAL MINUTES',
+  'MOVE FASTER',
+  'SECONDS LEFT',
+];
+
+/* ═══════════════════════════════════════════════════════════
+   HELPERS
+═══════════════════════════════════════════════════════════ */
+function fmt(s: number) {
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
 }
 
-// ─── SVG Shapes ─────────────────────────────────────────────────────────
-function SquidShapes() {
+/* ═══════════════════════════════════════════════════════════
+   FULLSCREEN SIDEBAR BUTTON
+═══════════════════════════════════════════════════════════ */
+function FsButton() {
+  const [isFs, setIsFs] = useState(false);
+
+  useEffect(() => {
+    const cb = () => setIsFs(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', cb);
+    return () => document.removeEventListener('fullscreenchange', cb);
+  }, []);
+
+  const toggle = useCallback(async () => {
+    try {
+      if (!document.fullscreenElement) await document.documentElement.requestFullscreen();
+      else                              await document.exitFullscreen();
+    } catch { /* ignore */ }
+  }, []);
+
   return (
-    <div className="symbol-container">
-      <div className="symbol-line" />
-      <svg className="symbol" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-        {/* Circle */}
-        <circle cx="50" cy="50" r="40" stroke="#FF2E63" strokeWidth="4" fill="none" opacity="0.8" />
-        {/* Triangle */}
-        <polygon points="50,18 82,72 18,72" stroke="#FF2E63" strokeWidth="3" fill="none" opacity="0.6" />
-        {/* Square (rotated) */}
-        <rect x="28" y="28" width="44" height="44" stroke="#FF2E63" strokeWidth="2" fill="none" opacity="0.4" />
-      </svg>
-      <div className="symbol-line" />
+    <div className="fs-sidebar">
+      <button
+        id="fs-toggle"
+        className="fs-btn"
+        onClick={toggle}
+        aria-label={isFs ? 'Exit fullscreen' : 'Enter fullscreen'}
+        title={isFs ? 'Exit Fullscreen' : 'Enter Fullscreen'}
+      >
+        {/* Squid Game symbol */}
+        <svg className="fs-symbol" viewBox="0 0 100 100" fill="none">
+          <circle   cx="50" cy="50" r="38"         stroke="#FF2E63" strokeWidth="5" />
+          <polygon  points="50,16 84,72 16,72"      stroke="#FF2E63" strokeWidth="4" />
+          <rect     x="30" y="30" width="40" height="40" stroke="#FF2E63" strokeWidth="3" />
+        </svg>
+
+        <div className="fs-divider" />
+
+        {/* Expand / compress icon */}
+        <svg className="fs-icon" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          {isFs ? (
+            <>
+              <polyline points="4 14 10 14 10 20" />
+              <polyline points="20 10 14 10 14 4"  />
+              <line x1="10" y1="14" x2="3"  y2="21" />
+              <line x1="21" y1="3"  x2="14" y2="10" />
+            </>
+          ) : (
+            <>
+              <polyline points="15 3 21 3 21 9"  />
+              <polyline points="9 21 3 21 3 15"  />
+              <line x1="21" y1="3"  x2="14" y2="10" />
+              <line x1="3"  y1="21" x2="10" y2="14" />
+            </>
+          )}
+        </svg>
+
+        <div className="fs-divider" />
+        <span className="fs-label">{isFs ? 'EXIT FS' : 'FULLSCREEN'}</span>
+      </button>
     </div>
   );
 }
 
-export default function SquidGame() {
-  // ─── State ────────────────────────────────────────────────────────────
-  const [gameState, setGameState] = useState<'landing' | 'playing' | 'over'>('landing');
-  const [timeLeft, setTimeLeft] = useState(TOTAL_TIME);
-  const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const [nextImageIndex, setNextImageIndex] = useState(1);
-  const [imageTransitioning, setImageTransitioning] = useState(false);
-  const [isDangerMode, setIsDangerMode] = useState(false);
-  const [showEscOverlay, setShowEscOverlay] = useState(false);
-  const [warningText, setWarningText] = useState('');
-  const [showWarning, setShowWarning] = useState(false);
-  const [isShaking, setIsShaking] = useState(false);
-  const [showGlitchFlash, setShowGlitchFlash] = useState(false);
+/* ═══════════════════════════════════════════════════════════
+   MAIN COMPONENT
+═══════════════════════════════════════════════════════════ */
+export default function SquidCTF() {
+  type Screen = 'landing' | 'playing' | 'over';
 
-  // ─── Refs ─────────────────────────────────────────────────────────────
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const imageTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const warningTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const shakeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const glitchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const escTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const isPlayingRef = useRef(false);
+  const [screen,       setScreen]       = useState<Screen>('landing');
+  const [timeLeft,     setTimeLeft]     = useState(TOTAL);
+  const [imgIdx,       setImgIdx]       = useState(0);   // current bg
+  const [nextIdx,      setNextIdx]      = useState(1);   // next bg (for cross-fade)
+  const [transitioning,setTransitioning]= useState(false);
+  const [danger,       setDanger]       = useState(false);
+  const [showEsc,      setShowEsc]      = useState(false);
+  const [warning,      setWarning]      = useState('');
+  const [shake,        setShake]        = useState(false);
+  const [glitch,       setGlitch]       = useState(false);
 
-  // ─── Fullscreen handler ───────────────────────────────────────────────
-  const handleFullscreenChange = useCallback(() => {
-    if (!document.fullscreenElement && isPlayingRef.current) {
-      setShowEscOverlay(true);
-      if (escTimeoutRef.current) clearTimeout(escTimeoutRef.current);
-      escTimeoutRef.current = setTimeout(() => {
-        setShowEscOverlay(false);
-      }, 3000);
+  const playing      = useRef(false);
+  const escTimeout   = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const warnTimeout  = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const shakeTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const glitchTimeout= useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  /* ── Fullscreen ESC detection ── */
+  const onFsChange = useCallback(() => {
+    if (!document.fullscreenElement && playing.current) {
+      setShowEsc(true);
+      if (escTimeout.current) clearTimeout(escTimeout.current);
+      escTimeout.current = setTimeout(() => setShowEsc(false), 3000);
     }
   }, []);
 
-  // ─── Enter game ─────────────────────────────────────────────────────
-  const enterGame = useCallback(async () => {
-    try {
-      await document.documentElement.requestFullscreen();
-    } catch {
-      // ignore if fullscreen fails
-    }
-    setGameState('playing');
-    isPlayingRef.current = true;
-  }, []);
-
-  // ─── Image rotation ──────────────────────────────────────────────────
-  const rotateImage = useCallback(() => {
-    setNextImageIndex(prev => {
-      const next = (prev + 1) % IMAGES.length;
-      return next;
-    });
-    setImageTransitioning(true);
-    setTimeout(() => {
-      setCurrentImageIndex(prev => (prev + 1) % IMAGES.length);
-      setImageTransitioning(false);
-    }, 1500);
-  }, []);
-
-  // ─── Trigger warning ─────────────────────────────────────────────────
-  const triggerWarning = useCallback(() => {
-    const msg = WARNING_MESSAGES[Math.floor(Math.random() * WARNING_MESSAGES.length)];
-    setWarningText(msg);
-    setShowWarning(true);
-    if (warningTimerRef.current) clearTimeout(warningTimerRef.current);
-    warningTimerRef.current = setTimeout(() => setShowWarning(false), 1200);
-  }, []);
-
-  // ─── Trigger screen shake ────────────────────────────────────────────
-  const triggerShake = useCallback(() => {
-    setIsShaking(true);
-    if (shakeTimerRef.current) clearTimeout(shakeTimerRef.current);
-    shakeTimerRef.current = setTimeout(() => setIsShaking(false), 500);
-  }, []);
-
-  // ─── Trigger glitch flash ────────────────────────────────────────────
-  const triggerGlitchFlash = useCallback(() => {
-    setShowGlitchFlash(true);
-    if (glitchTimerRef.current) clearTimeout(glitchTimerRef.current);
-    glitchTimerRef.current = setTimeout(() => setShowGlitchFlash(false), 350);
-  }, []);
-
-  // ─── Main timer effect ───────────────────────────────────────────────
   useEffect(() => {
-    if (gameState !== 'playing') return;
+    document.addEventListener('fullscreenchange', onFsChange);
+    return () => document.removeEventListener('fullscreenchange', onFsChange);
+  }, [onFsChange]);
 
-    // Countdown
-    timerRef.current = setInterval(() => {
-      setTimeLeft(prev => {
-        if (prev <= 1) {
-          clearInterval(timerRef.current!);
-          setGameState('over');
-          isPlayingRef.current = false;
+  /* ── Enter game ── */
+  const enterGame = useCallback(async () => {
+    try { await document.documentElement.requestFullscreen(); } catch { /* ok */ }
+    setScreen('playing');
+    playing.current = true;
+  }, []);
+
+  /* ── Image cross-fade ── */
+  const rotateImage = useCallback(() => {
+    const next = (imgIdx + 1) % IMAGES.length;
+    setNextIdx(next);
+    setTransitioning(true);
+    setTimeout(() => {
+      setImgIdx(next);
+      setNextIdx((next + 1) % IMAGES.length);
+      setTransitioning(false);
+    }, 1600);
+  }, [imgIdx]);
+
+  /* ── Countdown + image rotation ── */
+  useEffect(() => {
+    if (screen !== 'playing') return;
+
+    const tick = setInterval(() => {
+      setTimeLeft(t => {
+        if (t <= 1) {
+          clearInterval(tick);
+          setScreen('over');
+          playing.current = false;
+          if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
           return 0;
         }
-        return prev - 1;
+        return t - 1;
       });
     }, 1000);
 
-    // Image rotation
-    imageTimerRef.current = setInterval(() => {
-      rotateImage();
-    }, IMAGE_INTERVAL * 1000);
+    const imgTimer = setInterval(rotateImage, IMG_EVERY * 1000);
 
     return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-      if (imageTimerRef.current) clearInterval(imageTimerRef.current);
+      clearInterval(tick);
+      clearInterval(imgTimer);
     };
-  }, [gameState, rotateImage]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [screen]);
 
-  // ─── Danger mode effect ──────────────────────────────────────────────
+  /* ── Danger mode ── */
   useEffect(() => {
-    if (gameState !== 'playing') return;
-    const danger = timeLeft <= DANGER_THRESHOLD;
-    setIsDangerMode(danger);
-  }, [timeLeft, gameState]);
+    setDanger(timeLeft <= DANGER_AT && screen === 'playing');
+  }, [timeLeft, screen]);
 
-  // ─── Random effects during danger mode ────────────────────────────────
+  /* ── Danger random effects ── */
   useEffect(() => {
-    if (!isDangerMode || gameState !== 'playing') return;
+    if (!danger || screen !== 'playing') return;
 
-    const warnInterval = setInterval(() => {
-      if (Math.random() < 0.5) triggerWarning();
-    }, 8000);
+    const warnTick = setInterval(() => {
+      if (Math.random() < 0.5) {
+        const msg = WARNINGS[Math.floor(Math.random() * WARNINGS.length)];
+        setWarning(msg);
+        if (warnTimeout.current) clearTimeout(warnTimeout.current);
+        warnTimeout.current = setTimeout(() => setWarning(''), 1100);
+      }
+    }, 7000);
 
-    const shakeInterval = setInterval(() => {
-      if (Math.random() < 0.35) triggerShake();
+    const shakeTick = setInterval(() => {
+      if (Math.random() < 0.35) {
+        setShake(true);
+        if (shakeTimeout.current) clearTimeout(shakeTimeout.current);
+        shakeTimeout.current = setTimeout(() => setShake(false), 460);
+      }
     }, 5000);
 
     return () => {
-      clearInterval(warnInterval);
-      clearInterval(shakeInterval);
+      clearInterval(warnTick);
+      clearInterval(shakeTick);
     };
-  }, [isDangerMode, gameState, triggerWarning, triggerShake]);
+  }, [danger, screen]);
 
-  // ─── Random glitch flashes (every few minutes, any mode) ──────────────
+  /* ── Occasional glitch flash ── */
   useEffect(() => {
-    if (gameState !== 'playing') return;
-    const glitchInterval = setInterval(() => {
-      if (Math.random() < 0.4) triggerGlitchFlash();
-    }, isDangerMode ? 15000 : 45000);
-    return () => clearInterval(glitchInterval);
-  }, [gameState, isDangerMode, triggerGlitchFlash]);
-
-  // ─── Fullscreen listener ─────────────────────────────────────────────
-  useEffect(() => {
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
-    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
-  }, [handleFullscreenChange]);
-
-  // ─── Game over fullscreen exit ─────────────────────────────────────
-  useEffect(() => {
-    if (gameState === 'over') {
-      if (document.fullscreenElement) {
-        document.exitFullscreen().catch(() => {});
+    if (screen !== 'playing') return;
+    const t = setInterval(() => {
+      if (Math.random() < 0.38) {
+        setGlitch(true);
+        if (glitchTimeout.current) clearTimeout(glitchTimeout.current);
+        glitchTimeout.current = setTimeout(() => setGlitch(false), 320);
       }
-    }
-  }, [gameState]);
+    }, danger ? 14000 : 42000);
+    return () => clearInterval(t);
+  }, [screen, danger]);
 
-  // ─── Computed values ─────────────────────────────────────────────────
-  const progressPercent = ((TOTAL_TIME - timeLeft) / TOTAL_TIME) * 100;
-  const imageNum = currentImageIndex + 1;
+  const progress = ((TOTAL - timeLeft) / TOTAL) * 100;
 
-  // ─── Render ──────────────────────────────────────────────────────────
+  /* ══════════════════════════════════════════
+     RENDER
+  ══════════════════════════════════════════ */
   return (
     <>
-      {/* ── Grain overlay ── */}
-      <div className="grain-overlay" aria-hidden="true" />
+      {/* ── LAYER 0 & 1 : Background images (only 2 rendered at once) ── */}
+      <div
+        className="bg-current"
+        style={{ backgroundImage: `url('/${IMAGES[imgIdx]}')` }}
+        aria-hidden="true"
+      />
+      <div
+        className={`bg-next${transitioning ? ' visible' : ''}`}
+        style={{ backgroundImage: `url('/${IMAGES[nextIdx]}')` }}
+        aria-hidden="true"
+      />
 
-      {/* ── Vignette ── */}
-      <div className="vignette" aria-hidden="true" />
+      {/* ── LAYER 2 : Dark overlay ── */}
+      <div className="overlay-dark" aria-hidden="true" />
 
-      {/* ── Background layers ── */}
-      {IMAGES.map((img, i) => (
-        <div
-          key={img}
-          className={`bg-layer ${i === currentImageIndex && !imageTransitioning ? 'active' : i === nextImageIndex && imageTransitioning ? 'active' : i === currentImageIndex ? 'active' : 'inactive'}`}
-          style={{ backgroundImage: `url('/${img}')` }}
-          aria-hidden="true"
-        />
-      ))}
-      <div className="bg-darken" aria-hidden="true" />
+      {/* ── LAYER 3 : Vignette ── */}
+      <div className="overlay-vignette" aria-hidden="true" />
 
-      {/* ── Danger overlay ── */}
-      <div className={`danger-overlay${isDangerMode && gameState === 'playing' ? ' active' : ''}`} aria-hidden="true" />
+      {/* ── LAYER 4 : Grain ── */}
+      <div className="overlay-grain" aria-hidden="true" />
 
-      {/* ── Glitch flash ── */}
-      {showGlitchFlash && <div className="glitch-flash" aria-hidden="true" />}
+      {/* ════════════════════════════════════
+          LAYER 10 — LANDING
+      ════════════════════════════════════ */}
+      <main className={`landing${screen !== 'landing' ? ' hidden' : ''}`}>
 
-      {/* ════════════════════════════════════════
-          LANDING SCENE
-      ════════════════════════════════════════ */}
-      <main
-        className={`landing-container${gameState !== 'landing' ? ' hidden' : ''}`}
-        aria-hidden={gameState !== 'landing'}
-      >
-        <SquidShapes />
+        {/* Squid symbol row */}
+        <div className="symbol-row">
+          <div className="symbol-line" />
+          <svg className="symbol-svg" viewBox="0 0 100 100" fill="none">
+            <circle  cx="50" cy="50" r="40"         stroke="#FF2E63" strokeWidth="4" opacity="0.85" />
+            <polygon points="50,18 82,72 18,72"      stroke="#FF2E63" strokeWidth="3" opacity="0.65" />
+            <rect    x="28" y="28" width="44" height="44" stroke="#FF2E63" strokeWidth="2" opacity="0.45" />
+          </svg>
+          <div className="symbol-line" />
+        </div>
 
-        <p className="landing-selected">YOU HAVE BEEN SELECTED.</p>
+        <p className="landing-tagline">YOU HAVE BEEN SELECTED</p>
 
         <h1 className="landing-title">SQUID GAME</h1>
-        <h2 style={{ fontFamily: "'Orbitron', monospace", fontSize: 'clamp(0.9rem, 2.5vw, 1.3rem)', fontWeight: 700, letterSpacing: '0.3em', color: '#FF2E63', marginTop: '-1rem', textShadow: '0 0 20px rgba(255,46,99,0.5)' }}>
-          CTF
-        </h2>
+        <p className="landing-ctf">CTF</p>
 
         <p className="landing-sub">
-          Survive 2 hours.<br />
-          Solve or be eliminated.
+          Survive 2 hours.<br />Solve or be eliminated.
         </p>
 
-        <button
-          id="enter-game-btn"
-          className="enter-btn"
-          onClick={enterGame}
-          aria-label="Enter the game"
-        >
+        <button id="enter-btn" className="enter-btn" onClick={enterGame}>
           ENTER THE GAME
         </button>
       </main>
 
-      {/* ════════════════════════════════════════
-          GAME SCREEN
-      ════════════════════════════════════════ */}
+      {/* ════════════════════════════════════
+          LAYER 10 — GAME SCREEN
+      ════════════════════════════════════ */}
       <section
-        className={`game-screen${gameState !== 'playing' ? ' hidden' : ''}${isShaking ? ' shake' : ''}`}
-        aria-label="Game timer screen"
-        aria-hidden={gameState !== 'playing'}
+        className={`game-screen${screen !== 'playing' ? ' hidden' : ''}${shake ? ' shake' : ''}`}
+        aria-hidden={screen !== 'playing'}
       >
-        {/* HUD Top */}
-        <nav className="hud-bar">
-          <div className="player-id" aria-label="Player ID">{PLAYER_ID}</div>
-          <div className="image-progress" aria-label="Image progress">
-            IMAGE {imageNum} / {IMAGES.length}
-          </div>
-        </nav>
+        {/* Timer block */}
+        <div className="timer-block">
+          <div className="game-title">SQUID GAME CTF</div>
 
-        {/* Center Timer */}
-        <div className="timer-wrapper">
-          <div className="timer-label">TIME REMAINING</div>
           <div
-            className={`timer${isDangerMode ? ' danger' : ''}`}
-            aria-live="polite"
-            aria-label={`Time remaining: ${formatTime(timeLeft)}`}
+            className={`timer${danger ? ' danger' : ''}`}
             role="timer"
+            aria-live="polite"
+            aria-label={`Time remaining: ${fmt(timeLeft)}`}
           >
-            {formatTime(timeLeft)}
+            {fmt(timeLeft)}
           </div>
-          <div className="timer-label" style={{ marginTop: '0.25rem' }}>
-            {isDangerMode
-              ? '⚠ DANGER ZONE — MOVE NOW'
-              : timeLeft <= 1800
-              ? '⚡ HALF TIME PASSED'
-              : 'COMPETE. SURVIVE. WIN.'}
-          </div>
-        </div>
 
-        {/* Bottom HUD */}
-        <div className="bottom-hud">
-          <div className={`status-pill${isDangerMode ? ' danger-pill' : ''}`}>
-            {isDangerMode ? '⚠ CRITICAL — FINAL MINUTES' : '● LIVE CTF IN PROGRESS'}
+          <div className={`timer-sub${danger ? ' danger-sub' : ''}`}>
+            {danger ? '⚠ DANGER ZONE — MOVE NOW' : 'COMPETE. SURVIVE. WIN.'}
           </div>
         </div>
 
         {/* Progress bar */}
         <div
-          className="time-progress-bar"
-          style={{ width: `${progressPercent}%` }}
+          className="progress-bar"
+          style={{ width: `${progress}%` }}
           role="progressbar"
-          aria-valuenow={progressPercent}
+          aria-valuenow={progress}
           aria-valuemin={0}
           aria-valuemax={100}
         />
+
+        {/* Status pill */}
+        <div className="status-row">
+          <div className={`status-pill${danger ? ' danger' : ''}`}>
+            {danger ? '⚠ CRITICAL — FINAL MINUTES' : '● LIVE CTF IN PROGRESS'}
+          </div>
+        </div>
       </section>
 
-      {/* ── Warning flash text ── */}
-      {showWarning && gameState === 'playing' && (
-        <div className="warning-text" role="alert" aria-live="assertive">
-          {warningText}
+      {/* ── LAYER 20 : Danger overlay ── */}
+      <div
+        className={`danger-overlay${danger && screen === 'playing' ? ' active' : ''}`}
+        aria-hidden="true"
+      />
+
+      {/* ── LAYER 21 : Glitch flash ── */}
+      {glitch && <div className="glitch-flash" aria-hidden="true" />}
+
+      {/* ── LAYER 30 : Warning text ── */}
+      {warning && screen === 'playing' && (
+        <div className="warning-text" role="alert" aria-live="assertive" key={warning}>
+          {warning}
         </div>
       )}
 
-      {/* ── ESC Overlay ── */}
+      {/* ── LAYER 40 : ESC overlay ── */}
       <div
-        className={`esc-overlay${showEscOverlay ? ' visible' : ''}`}
+        className={`esc-overlay${showEsc ? ' visible' : ''}`}
         role="alertdialog"
-        aria-label="Cannot escape message"
-        aria-hidden={!showEscOverlay}
+        aria-hidden={!showEsc}
       >
-        <p className="esc-message">YOU CANNOT<br />ESCAPE THE GAME.</p>
+        <p className="esc-text">YOU CANNOT<br />ESCAPE THE GAME.</p>
       </div>
 
-      {/* ════════════════════════════════════════
-          GAME OVER SCREEN
-      ════════════════════════════════════════ */}
+      {/* ── LAYER 50 : Game over ── */}
       <div
-        className={`game-over-screen${gameState === 'over' ? ' active' : ''}`}
+        className={`gameover-screen${screen === 'over' ? ' active' : ''}`}
         role="dialog"
-        aria-label="Game over — eliminated"
-        aria-hidden={gameState !== 'over'}
+        aria-hidden={screen !== 'over'}
       >
-        <div className="eliminated-text" aria-label="Eliminated">ELIMINATED</div>
+        <div className="eliminated">ELIMINATED</div>
         <p className="eliminated-sub">PLAYER 067 · TIME HAS EXPIRED · GAME OVER</p>
       </div>
+
+      {/* ── LAYER 60 : Fullscreen sidebar ── */}
+      <FsButton />
     </>
   );
 }
