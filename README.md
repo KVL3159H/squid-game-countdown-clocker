@@ -1,36 +1,110 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Squid Game CTF Countdown
+
+A cinematic, full-screen countdown experience built with Next.js and React for CTF/event environments. The interface combines a two-hour timer, rotating backgrounds, full-screen controls, warning states, progress tracking, and dramatic end-game effects.
+
+> This is an unofficial fan-made interface inspired by the visual style of *Squid Game*. It is not affiliated with or endorsed by Netflix.
+
+## Features
+
+- Two-hour countdown timer
+- Full-screen mode with an explicit enter/exit control
+- Automatic background rotation
+- Smooth image cross-fades
+- Final 10-minute danger mode
+- Warning messages and visual effects
+- Progress tracking
+- Responsive React UI
+- Accessible labels for full-screen controls
+
+## Tech Stack
+
+- Next.js 16
+- React 19
+- TypeScript
+- Tailwind CSS
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
+
+- Node.js 20+ recommended
+- npm, pnpm, yarn, or Bun
+
+### Install
+
+```bash
+git clone https://github.com/KVL3159H/squid-game-countdown-clocker.git
+cd squid-game-countdown-clocker
+npm install
+```
+
+### Run
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open the local URL printed by Next.js, normally:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```text
+http://localhost:3000
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Production Build
 
-## Learn More
+```bash
+npm run build
+npm start
+```
 
-To learn more about Next.js, take a look at the following resources:
+## Project Structure
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```text
+app/
+├── page.tsx        main countdown experience
+└── ...             Next.js application files
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+public/
+└── image assets used by the rotating background
+```
 
-## Deploy on Vercel
+## Main Timing Constants
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+The primary timing values are defined in `app/page.tsx`:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```ts
+const TOTAL = 7200;      // two hours
+const IMG_EVERY = 120;   // image rotation interval
+const DANGER_AT = 600;   // final ten minutes
+```
+
+Change these values to adapt the experience for a different event length.
+
+## Customization
+
+You can customize:
+
+- timer duration;
+- warning text;
+- image rotation interval;
+- background assets;
+- danger-mode threshold;
+- typography and visual effects.
+
+The background files are referenced from the public directory.
+
+## Accessibility Notes
+
+The full-screen toggle includes an ARIA label and title. When extending the project, preserve keyboard access, readable contrast, and reduced-motion support where practical.
+
+## Deployment
+
+The project can be deployed on any platform that supports Next.js, including Vercel or a Node.js server.
+
+## Contributing
+
+Focused contributions are welcome. Good areas include accessibility, reduced-motion support, configuration options, tests, and documentation.
+
+---
+
+Built as an event-focused countdown interface for CTF and timed challenge environments.
