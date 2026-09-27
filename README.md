@@ -1,5 +1,9 @@
 # Squid Game CTF Countdown
 
+[![Live Website](https://img.shields.io/badge/Live_Website-Open_Project-111111?style=for-the-badge)](https://squid-game-countdown-clocker.onrender.com/)
+
+**Live deployment:** https://squid-game-countdown-clocker.onrender.com/
+
 A cinematic, full-screen countdown experience built with Next.js and React for CTF/event environments. The interface combines a two-hour timer, rotating backgrounds, full-screen controls, warning states, progress tracking, and dramatic end-game effects.
 
 > This is an unofficial fan-made interface inspired by the visual style of *Squid Game*. It is not affiliated with or endorsed by Netflix.
