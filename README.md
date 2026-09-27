@@ -31,7 +31,7 @@ A cinematic, full-screen countdown experience built with Next.js and React for C
 
 ### Prerequisites
 
-- Node.js 20+ recommended
+- Node.js 22 recommended
 - npm, pnpm, yarn, or Bun
 
 ### Install
@@ -119,7 +119,9 @@ Recommended Render configuration:
 - **Start Command:** `npm start`
 - **Node.js:** 22
 
-Render can automatically redeploy when new commits are pushed to `master`.
+Render automatically redeploys the production service when new commits are pushed to `master`.
+
+See [`docs/RENDER_DEPLOYMENT.md`](docs/RENDER_DEPLOYMENT.md) for deployment and troubleshooting notes.
 
 ## Contributing
 
