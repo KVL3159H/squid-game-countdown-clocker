@@ -103,24 +103,23 @@ The full-screen toggle includes an ARIA label and title. When extending the proj
 
 ## Deployment
 
-### Vercel
+### Production — Render
 
-This repository is ready for Vercel deployment using Vercel's native Next.js runtime and build output.
+The live production deployment is hosted on Render:
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/KVL3159H/squid-game-countdown-clocker)
+**https://squid-game-countdown-clocker.onrender.com/**
 
-Recommended Vercel settings:
+Recommended Render configuration:
 
-- **Framework Preset:** Next.js
+- **Service type:** Web Service
+- **Runtime:** Node
+- **Branch:** `master`
 - **Root Directory:** repository root
-- **Install Command:** `npm install` (default)
-- **Build Command:** `npm run build`
-- **Output:** handled automatically by Vercel's Next.js integration
+- **Build Command:** `npm ci && npm run build`
+- **Start Command:** `npm start`
 - **Node.js:** 22
 
-Every push to the connected production branch can trigger a fresh deployment automatically.
-
-For non-Vercel hosting, adapt the project to the target platform's Next.js deployment model.
+Render can automatically redeploy when new commits are pushed to `master`.
 
 ## Contributing
 
