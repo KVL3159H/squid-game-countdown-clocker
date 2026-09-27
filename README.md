@@ -99,7 +99,24 @@ The full-screen toggle includes an ARIA label and title. When extending the proj
 
 ## Deployment
 
-The project can be deployed on any platform that supports Next.js, including Vercel or a Node.js server.
+### Vercel
+
+This repository is ready for Vercel deployment. The Next.js configuration uses static export with unoptimized images, so the project can be served as a static site after the production build.
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/KVL3159H/squid-game-countdown-clocker)
+
+Recommended Vercel settings:
+
+- **Framework Preset:** Next.js
+- **Root Directory:** repository root
+- **Install Command:** `npm install` (default)
+- **Build Command:** `npm run build`
+- **Output:** handled by the Next.js static export configuration
+- **Node.js:** 22
+
+Every push to the connected production branch can trigger a fresh deployment automatically.
+
+The project can also be deployed on any platform capable of serving the generated static export.
 
 ## Contributing
 
