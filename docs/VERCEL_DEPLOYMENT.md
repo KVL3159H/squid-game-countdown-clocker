@@ -1,6 +1,6 @@
 # Vercel Deployment
 
-The Squid Game CTF Countdown is a Next.js application configured for static export.
+The Squid Game CTF Countdown is a Next.js application configured for Vercel's native Next.js deployment.
 
 ## Deployment path
 
@@ -30,15 +30,9 @@ npm run build
 
 The repository also has GitHub Actions build verification, so changes are checked before merge.
 
-## Static-export note
+## Vercel-native output
 
-`next.config.ts` currently contains:
-
-```ts
-output: 'export'
-```
-
-and images are configured with `unoptimized: true`. This keeps the countdown experience deployable as static assets without requiring a long-running Node.js server.
+The project uses the standard Next.js build output. Vercel detects Next.js automatically and manages the deployment output without a custom output directory or static-export setting.
 
 ## Branding notice
 
